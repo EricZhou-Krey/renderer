@@ -1,11 +1,15 @@
 use crate::{
     asset::{AssetWorldExtension, FrameDelta},
-    demo::{DemoScheduleExtension, DemoWorldExtension},
+    component::{
+        camera::{ActiveCamera, Camera, CameraProjection},
+        Transform,
+    },
     renderer::{resource::init_callback_resources, Renderer},
     resource::ResoureWorldExtension,
 };
-use bevy_ecs::{schedule::Schedule, world::World};
+use bevy_ecs::{entity::Entity, schedule::Schedule, world::World};
 use eframe::CreationContext;
+use glam::{Quat, Vec3};
 use rook_terminal::{
     command::HelpCommand, event::TerminalCommandRequested, TerminalInputState, TerminalSession,
     TerminalViewState, TerminalWorldExtension,
@@ -20,9 +24,28 @@ impl RaytraceApp {
     pub fn new(cc: &CreationContext) -> Self {
         let mut world: World = World::new();
         world.setup_terminal();
+
         world.setup_assets();
-        world.setup_demo();
         world.setup_resource();
+
+        let camera: Entity = world
+            .spawn((
+                Camera,
+                Transform {
+                    translation: Vec3::ZERO,
+                    rotation: Quat::IDENTITY,
+                    scale: Vec3::ONE,
+                },
+            ))
+            .id();
+
+        world.insert_resource(ActiveCamera { camera });
+        world.insert_resource(CameraProjection {
+            vertical_fov: 60.0_f32.to_radians(),
+            aspect_ratio: 16.0 / 9.0,
+            z_near: 0.1,
+            z_far: 1000.0,
+        });
 
         world.trigger(TerminalCommandRequested {
             raw_command: HelpCommand::name().to_string(),
@@ -31,8 +54,7 @@ impl RaytraceApp {
 
         init_callback_resources(cc, &mut world);
 
-        let mut schedule: Schedule = Schedule::default();
-        schedule.setup_demo();
+        let schedule: Schedule = Schedule::default();
 
         Self { world, schedule }
     }
@@ -66,9 +88,75 @@ impl eframe::App for RaytraceApp {
         let dt: f32 = ctx.input(|input| input.stable_dt.min(0.1));
 
         self.world.resource_mut::<FrameDelta>().0 = dt;
-        crate::demo::move_camera_from_keyboard(&mut self.world, ctx, dt);
+        move_camera_from_keyboard(&mut self.world, ctx, dt);
         self.schedule.run(&mut self.world);
 
         ctx.request_repaint();
+    }
+}
+
+pub fn move_camera_from_keyboard(world: &mut World, ctx: &egui::Context, dt: f32) {
+    let wants_keyboard = ctx.egui_wants_keyboard_input();
+
+    let (forward, backward, left, right, up, down, look_inactive, mouse_delta, fast) =
+        ctx.input(|input| {
+            let look_active =
+                input.pointer.button_down(egui::PointerButton::Secondary) && !wants_keyboard;
+
+            (
+                input.key_down(egui::Key::W),
+                input.key_down(egui::Key::S),
+                input.key_down(egui::Key::A),
+                input.key_down(egui::Key::D),
+                input.key_down(egui::Key::E),
+                input.key_down(egui::Key::Q),
+                look_active,
+                input
+                    .pointer
+                    .motion()
+                    .unwrap_or_else(|| input.pointer.delta()),
+                input.modifiers.shift,
+            )
+        });
+
+    ctx.send_viewport_cmd(egui::ViewportCommand::CursorGrab(if !look_inactive {
+        egui::viewport::CursorGrab::Locked
+    } else {
+        egui::viewport::CursorGrab::None
+    }));
+    ctx.send_viewport_cmd(egui::ViewportCommand::CursorVisible(look_inactive));
+
+    if wants_keyboard || look_inactive {
+        return;
+    }
+
+    let Some(camera_entity) = world
+        .get_resource::<ActiveCamera>()
+        .map(|active| active.camera)
+    else {
+        return;
+    };
+
+    let Some(mut transform) = world.get_mut::<Transform>(camera_entity) else {
+        return;
+    };
+
+    let speed = if fast { 12.0 } else { 4.0 };
+    let mouse_sensitivity = 0.003;
+
+    let yaw = -mouse_delta.x * mouse_sensitivity;
+    let pitch = mouse_delta.y * mouse_sensitivity;
+
+    transform.rotation *= glam::Quat::from_rotation_y(yaw) * glam::Quat::from_rotation_x(pitch);
+
+    let local_direction = glam::Vec3::new(
+        right as i32 as f32 - left as i32 as f32,
+        up as i32 as f32 - down as i32 as f32,
+        backward as i32 as f32 - forward as i32 as f32,
+    );
+
+    if local_direction != glam::Vec3::ZERO {
+        let direction = (transform.rotation * local_direction).normalize();
+        transform.translation += direction * speed * dt;
     }
 }

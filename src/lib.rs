@@ -3,10 +3,8 @@ pub mod app;
 pub mod asset;
 pub mod command;
 pub mod component;
-pub mod demo;
 pub mod renderer;
 pub mod resource;
-pub mod scene_sheet;
 pub mod system;
 
 /*

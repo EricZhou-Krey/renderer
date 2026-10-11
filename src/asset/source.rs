@@ -1,5 +1,8 @@
 use crate::{
-    asset::{MeshAsset, TextureAsset},
+    asset::{
+        id::{MaterialId, MeshId, TextureId},
+        MeshAsset, TextureAsset,
+    },
     component::{camera::CameraProjection, Transform},
 };
 
@@ -16,11 +19,13 @@ pub struct SceneSource {
 #[derive(Debug, Clone)]
 pub enum MeshSource {
     Description(MeshAsset),
+    Source(MeshId),
 }
 
 #[derive(Debug, Clone)]
 pub enum TextureSource {
     Description(TextureAsset),
+    Source(TextureId),
 }
 
 #[derive(Debug, Clone)]
@@ -30,6 +35,7 @@ pub enum MaterialSource {
         base_color_texture: usize,
         normal_texture: usize,
     },
+    Source(MaterialId),
 }
 
 #[derive(Debug, Clone)]

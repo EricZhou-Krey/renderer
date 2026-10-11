@@ -3,7 +3,7 @@ use crate::{
         id::{AssetId, MaterialId, MeshId, TextureId},
         manager::{MaterialManager, MeshManager, TextureManager},
         source::{MaterialSource, MeshSource, SceneSource, TextureSource},
-        MaterialAsset, MeshAsset, TextureAsset,
+        MaterialAsset,
     },
     component::{
         camera::{ActiveCamera, Camera, CameraProjection},
@@ -52,8 +52,10 @@ pub fn load_scene(
     let mut texture_ids: Vec<TextureId> = Vec::with_capacity(scene.textures.len());
 
     for source in &scene.textures {
-        let asset: TextureAsset = load_texture_asset(source);
-        let id: TextureId = texture_manager.textures.insert(asset.clone());
+        let id: TextureId = match source {
+            TextureSource::Description(asset) => texture_manager.textures.insert(asset.clone()),
+            TextureSource::Source(id) => *id,
+        };
 
         upload_ids.push(AssetId::Texture(id));
         texture_ids.push(id);
@@ -62,8 +64,10 @@ pub fn load_scene(
     let mut mesh_ids: Vec<MeshId> = Vec::with_capacity(scene.meshes.len());
 
     for source in &scene.meshes {
-        let asset: MeshAsset = load_mesh_asset(source);
-        let id: MeshId = mesh_manager.meshes.insert(asset.clone());
+        let id: MeshId = match source {
+            MeshSource::Description(asset) => mesh_manager.meshes.insert(asset.clone()),
+            MeshSource::Source(id) => *id,
+        };
 
         upload_ids.push(AssetId::Mesh(id));
         mesh_ids.push(id);
@@ -72,8 +76,18 @@ pub fn load_scene(
     let mut material_ids: Vec<MaterialId> = Vec::with_capacity(scene.materials.len());
 
     for source in &scene.materials {
-        let asset: MaterialAsset = load_material_asset(source, &texture_ids);
-        let id: MaterialId = material_manager.materials.insert(asset.clone());
+        let id: MaterialId = match source {
+            MaterialSource::Description {
+                base_color,
+                base_color_texture,
+                normal_texture,
+            } => material_manager.materials.insert(MaterialAsset {
+                base_color: *base_color,
+                base_color_texture: texture_ids[*base_color_texture],
+                normal_texture: texture_ids[*normal_texture],
+            }),
+            MaterialSource::Source(id) => *id,
+        };
 
         upload_ids.push(AssetId::Material(id));
         material_ids.push(id);
@@ -135,7 +149,9 @@ pub fn load_scene(
 
 fn validate_scene(scene: &SceneSource) -> anyhow::Result<()> {
     for (index, source) in scene.meshes.iter().enumerate() {
-        let MeshSource::Description(mesh) = source;
+        let MeshSource::Description(mesh) = source else {
+            continue;
+        };
 
         for &vertex_index in &mesh.indices {
             anyhow::ensure!(
@@ -146,7 +162,9 @@ fn validate_scene(scene: &SceneSource) -> anyhow::Result<()> {
     }
 
     for (index, source) in scene.textures.iter().enumerate() {
-        let TextureSource::Description(texture) = source;
+        let TextureSource::Description(texture) = source else {
+            continue;
+        };
 
         let expected_len: usize = (texture.width as usize)
             .checked_mul(texture.height as usize)
@@ -165,7 +183,10 @@ fn validate_scene(scene: &SceneSource) -> anyhow::Result<()> {
             base_color_texture,
             normal_texture,
             ..
-        } = source;
+        } = source
+        else {
+            continue;
+        };
 
         for texture_index in [*base_color_texture, *normal_texture] {
             anyhow::ensure!(
@@ -189,30 +210,4 @@ fn validate_scene(scene: &SceneSource) -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-fn load_mesh_asset(source: &MeshSource) -> MeshAsset {
-    match source {
-        MeshSource::Description(asset) => asset.clone(),
-    }
-}
-
-fn load_texture_asset(source: &TextureSource) -> TextureAsset {
-    match source {
-        TextureSource::Description(asset) => asset.clone(),
-    }
-}
-
-fn load_material_asset(source: &MaterialSource, texture_ids: &[TextureId]) -> MaterialAsset {
-    match source {
-        MaterialSource::Description {
-            base_color,
-            base_color_texture,
-            normal_texture,
-        } => MaterialAsset {
-            base_color: *base_color,
-            base_color_texture: texture_ids[*base_color_texture],
-            normal_texture: texture_ids[*normal_texture],
-        },
-    }
 }
