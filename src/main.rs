@@ -1,5 +1,5 @@
 use eframe::{CreationContext, NativeOptions};
-use sound_raytracing::app::RaytraceApp;
+use renderer::app::RaytraceApp;
 
 fn main() -> eframe::Result {
     env_logger::init();

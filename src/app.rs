@@ -6,6 +6,7 @@ use crate::{
     },
     renderer::{resource::init_callback_resources, Renderer},
     resource::{FrameDelta, ResoureWorldExtension},
+    terminal::RendererTerminalWorldExtension,
 };
 use bevy_ecs::{entity::Entity, schedule::Schedule, world::World};
 use eframe::CreationContext;
@@ -24,6 +25,7 @@ impl RaytraceApp {
     pub fn new(cc: &CreationContext) -> Self {
         let mut world: World = World::new();
         world.setup_terminal();
+        world.setup_render_commands();
         world.setup_assets();
         world.setup_resource();
 
