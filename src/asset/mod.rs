@@ -4,7 +4,7 @@ use crate::asset::{
     loader::{load_scene, GPUAssetUploader},
     manager::{MaterialManager, MeshManager, TextureManager},
 };
-use bevy_ecs::{resource::Resource, system::RunSystemOnce, world::World};
+use bevy_ecs::{system::RunSystemOnce, world::World};
 
 pub mod builtin;
 pub mod id;
@@ -39,9 +39,6 @@ pub struct MaterialAsset {
     pub base_color_texture: TextureId,
     pub normal_texture: TextureId,
 }
-
-#[derive(Default, Debug, PartialEq, Resource)]
-pub struct FrameDelta(pub f32);
 
 pub trait AssetWorldExtension {
     fn setup_assets(&mut self);

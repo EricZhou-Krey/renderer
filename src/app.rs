@@ -1,11 +1,11 @@
 use crate::{
-    asset::{AssetWorldExtension, FrameDelta},
+    asset::AssetWorldExtension,
     component::{
         camera::{ActiveCamera, Camera, CameraProjection},
         Transform,
     },
     renderer::{resource::init_callback_resources, Renderer},
-    resource::ResoureWorldExtension,
+    resource::{FrameDelta, ResoureWorldExtension},
 };
 use bevy_ecs::{entity::Entity, schedule::Schedule, world::World};
 use eframe::CreationContext;
@@ -24,7 +24,6 @@ impl RaytraceApp {
     pub fn new(cc: &CreationContext) -> Self {
         let mut world: World = World::new();
         world.setup_terminal();
-
         world.setup_assets();
         world.setup_resource();
 

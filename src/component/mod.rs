@@ -1,6 +1,5 @@
 use crate::asset::id::{MaterialId, MeshId, TextureId};
 
-pub mod acoustics;
 pub mod camera;
 pub mod debug;
 
