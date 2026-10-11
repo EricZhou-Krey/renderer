@@ -1,4 +1,4 @@
-# beyv_ecs Renderer
+# renderer
 
 A Rust renderer built with `beyv_ecs`, `wgpu`, and an `egui`/`eframe` debug interface.
 To run the project, clone the repository and run `cargo run`.
