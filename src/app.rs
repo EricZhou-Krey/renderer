@@ -2,6 +2,7 @@ use crate::{
     asset::{AssetWorldExtension, FrameDelta},
     demo::{DemoScheduleExtension, DemoWorldExtension},
     renderer::{resource::init_callback_resources, Renderer},
+    resource::ResoureWorldExtension,
 };
 use bevy_ecs::{schedule::Schedule, world::World};
 use eframe::CreationContext;
@@ -21,6 +22,7 @@ impl RaytraceApp {
         world.setup_terminal();
         world.setup_assets();
         world.setup_demo();
+        world.setup_resource();
 
         world.trigger(TerminalCommandRequested {
             raw_command: HelpCommand::name().to_string(),
@@ -64,6 +66,7 @@ impl eframe::App for RaytraceApp {
         let dt: f32 = ctx.input(|input| input.stable_dt.min(0.1));
 
         self.world.resource_mut::<FrameDelta>().0 = dt;
+        crate::demo::move_camera_from_keyboard(&mut self.world, ctx, dt);
         self.schedule.run(&mut self.world);
 
         ctx.request_repaint();

@@ -1,11 +1,8 @@
-use crate::{
-    asset::{
-        builtin::install_builtin_assets_system,
-        id::TextureId,
-        loader::{load_scene, GPUAssetUploader},
-        manager::{MaterialManager, MeshManager, TextureManager},
-    },
-    resource::terminal_debug_settings::TerminalDebugSettings,
+use crate::asset::{
+    builtin::install_builtin_assets_system,
+    id::TextureId,
+    loader::{load_scene, GPUAssetUploader},
+    manager::{MaterialManager, MeshManager, TextureManager},
 };
 use bevy_ecs::{resource::Resource, system::RunSystemOnce, world::World};
 
@@ -56,9 +53,6 @@ impl AssetWorldExtension for World {
         self.insert_resource(TextureManager::default());
         self.insert_resource(MaterialManager::default());
         self.insert_resource(GPUAssetUploader::default());
-
-        self.insert_resource(TerminalDebugSettings::default());
-        self.insert_resource(FrameDelta::default());
 
         self.run_system_once(install_builtin_assets_system)
             .expect("failed to install built-in assets");

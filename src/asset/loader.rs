@@ -1,10 +1,3 @@
-use bevy_ecs::{
-    event::Event,
-    observer::On,
-    prelude::{Commands, ResMut},
-    resource::Resource,
-};
-
 use crate::{
     asset::{
         id::{AssetId, MaterialId, MeshId, TextureId},
@@ -12,8 +5,19 @@ use crate::{
         source::{MaterialSource, MeshSource, SceneSource, TextureSource},
         MaterialAsset, MeshAsset, TextureAsset,
     },
-    component::{Material, Mesh},
+    component::{
+        camera::{ActiveCamera, Camera, CameraProjection},
+        Light, Material, Mesh, Transform,
+    },
 };
+use bevy_ecs::{
+    entity::Entity,
+    event::Event,
+    observer::On,
+    prelude::{Commands, ResMut},
+    resource::Resource,
+};
+use glam::Vec3;
 
 #[derive(Default, Debug, Resource)]
 pub struct GPUAssetUploader {
@@ -85,6 +89,45 @@ pub fn load_scene(
                 id: material_ids[object.material],
             },
         ));
+    }
+
+    for light_source in &scene.lights {
+        commands.spawn((
+            Light {
+                color: light_source.color,
+                intensity: light_source.intensity,
+                range: light_source.range,
+            },
+            light_source.transform.clone(),
+        ));
+    }
+
+    if let Some(scene_camera) = &scene.camera {
+        let camera: Entity = commands
+            .spawn((scene_camera.transform.clone(), Camera))
+            .id();
+
+        commands.insert_resource(scene_camera.projection.clone());
+        commands.insert_resource(ActiveCamera { camera });
+    } else {
+        let camera: Entity = commands
+            .spawn((
+                Camera,
+                Transform {
+                    translation: Vec3::ZERO,
+                    rotation: glam::Quat::IDENTITY,
+                    scale: Vec3::ONE,
+                },
+            ))
+            .id();
+
+        commands.insert_resource(ActiveCamera { camera });
+        commands.insert_resource(CameraProjection {
+            vertical_fov: 60.0_f32.to_radians(),
+            aspect_ratio: 16.0 / 9.0,
+            z_near: 0.1,
+            z_far: 1000.0,
+        });
     }
 
     asset_uploader.asset_ids.append(&mut upload_ids);

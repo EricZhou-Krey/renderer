@@ -1,24 +1,9 @@
 use crate::{
-    asset::{
-        builtin::BuiltinAssets,
-        id::{AssetId, MaterialId, MeshId, TextureId},
-        loader::GPUAssetUploader,
-        manager::{MaterialManager, TextureManager},
-        FrameDelta, MaterialAsset, TextureAsset,
-    },
-    component::{
-        camera::{ActiveCamera, Camera, CameraProjection},
-        Light, Material, Mesh, Transform,
-    },
+    asset::loader::RequestLoadScene,
+    component::{camera::ActiveCamera, Transform},
+    scene_sheet::demo1_scene_source,
 };
-use bevy_ecs::{
-    entity::Entity,
-    query::With,
-    schedule::Schedule,
-    system::{Query, Res},
-    world::World,
-};
-use glam::Vec3;
+use bevy_ecs::{schedule::Schedule, world::World};
 
 pub trait DemoWorldExtension {
     fn setup_demo(&mut self);
@@ -26,104 +11,9 @@ pub trait DemoWorldExtension {
 
 impl DemoWorldExtension for World {
     fn setup_demo(&mut self) {
-        let camera_position: Vec3 = Vec3::new(5.0, -5.0, 5.0);
-        let direction: Vec3 = (Vec3::ZERO - camera_position).normalize();
-
-        let camera: Entity = self
-            .spawn((
-                Camera,
-                Transform {
-                    translation: camera_position,
-                    rotation: glam::Quat::from_rotation_arc(glam::Vec3::NEG_Z, direction),
-                    scale: Vec3::ONE,
-                },
-            ))
-            .id();
-
-        self.insert_resource(ActiveCamera { camera });
-        self.insert_resource(CameraProjection {
-            vertical_fov: 60.0_f32.to_radians(),
-            aspect_ratio: 16.0 / 9.0,
-            z_near: 0.1,
-            z_far: 1000.0,
+        self.trigger(RequestLoadScene {
+            scene: demo1_scene_source(),
         });
-
-        self.spawn((
-            Light {
-                color: [100.0, 50.0, 50.0],
-                intensity: 0.01,
-                range: 1000.0,
-            },
-            Transform {
-                translation: Vec3::new(5.0, 0.0, 0.0),
-                rotation: glam::Quat::IDENTITY,
-                scale: Vec3::ONE,
-            },
-        ));
-
-        self.spawn((
-            Light {
-                color: [50.0, 100.0, 50.0],
-                intensity: 0.01,
-                range: 1000.0,
-            },
-            Transform {
-                translation: Vec3::new(0.0, 5.0, 0.0),
-                rotation: glam::Quat::IDENTITY,
-                scale: Vec3::ONE,
-            },
-        ));
-
-        self.spawn((
-            Light {
-                color: [50.0, 50.0, 100.0],
-                intensity: 0.01,
-                range: 1000.0,
-            },
-            Transform {
-                translation: Vec3::new(0.0, 0.0, 5.0),
-                rotation: glam::Quat::IDENTITY,
-                scale: Vec3::ONE,
-            },
-        ));
-
-        let cube_mesh_id: MeshId = self.resource::<BuiltinAssets>().meshes.sphere;
-        let flat_normal_id: TextureId = self.resource::<BuiltinAssets>().textures.flat_normal;
-
-        let base_color_texture_id: TextureId = self
-            .resource_mut::<TextureManager>()
-            .textures
-            .insert(TextureAsset {
-                width: 2,
-                height: 2,
-                rgba8: vec![
-                    230, 90, 30, 255, 245, 210, 120, 255, 245, 210, 120, 255, 230, 90, 30, 255,
-                ],
-            });
-
-        let material_id: MaterialId =
-            self.resource_mut::<MaterialManager>()
-                .materials
-                .insert(MaterialAsset {
-                    base_color: [1.0, 1.0, 1.0, 1.0],
-                    base_color_texture: base_color_texture_id,
-                    normal_texture: flat_normal_id,
-                });
-
-        self.resource_mut::<GPUAssetUploader>().asset_ids.extend([
-            AssetId::Texture(base_color_texture_id),
-            AssetId::Material(material_id),
-        ]);
-
-        self.spawn((
-            Transform {
-                translation: Vec3::ZERO,
-                rotation: glam::Quat::IDENTITY,
-                scale: Vec3::splat(1.5),
-            },
-            Mesh { id: cube_mesh_id },
-            Material { id: material_id },
-        ));
     }
 }
 
@@ -132,16 +22,71 @@ pub trait DemoScheduleExtension {
 }
 
 impl DemoScheduleExtension for Schedule {
-    fn setup_demo(&mut self) {
-        self.add_systems(rotate_objects);
-    }
+    fn setup_demo(&mut self) {}
 }
 
-fn rotate_objects(
-    mut transforms: Query<&mut Transform, (With<Material>, With<Mesh>)>,
-    dt: Res<FrameDelta>,
-) {
-    for mut transform in transforms.iter_mut() {
-        transform.rotation *= glam::Quat::from_axis_angle(Vec3::Y, dt.0);
+pub fn move_camera_from_keyboard(world: &mut World, ctx: &egui::Context, dt: f32) {
+    let wants_keyboard = ctx.egui_wants_keyboard_input();
+
+    let (forward, backward, left, right, up, down, look_inactive, mouse_delta, fast) =
+        ctx.input(|input| {
+            let look_active =
+                input.pointer.button_down(egui::PointerButton::Secondary) && !wants_keyboard;
+
+            (
+                input.key_down(egui::Key::W),
+                input.key_down(egui::Key::S),
+                input.key_down(egui::Key::A),
+                input.key_down(egui::Key::D),
+                input.key_down(egui::Key::E),
+                input.key_down(egui::Key::Q),
+                look_active,
+                input
+                    .pointer
+                    .motion()
+                    .unwrap_or_else(|| input.pointer.delta()),
+                input.modifiers.shift,
+            )
+        });
+
+    ctx.send_viewport_cmd(egui::ViewportCommand::CursorGrab(if !look_inactive {
+        egui::viewport::CursorGrab::Locked
+    } else {
+        egui::viewport::CursorGrab::None
+    }));
+    ctx.send_viewport_cmd(egui::ViewportCommand::CursorVisible(look_inactive));
+
+    if wants_keyboard || look_inactive {
+        return;
+    }
+
+    let Some(camera_entity) = world
+        .get_resource::<ActiveCamera>()
+        .map(|active| active.camera)
+    else {
+        return;
+    };
+
+    let Some(mut transform) = world.get_mut::<Transform>(camera_entity) else {
+        return;
+    };
+
+    let speed = if fast { 12.0 } else { 4.0 };
+    let mouse_sensitivity = 0.003;
+
+    let yaw = -mouse_delta.x * mouse_sensitivity;
+    let pitch = mouse_delta.y * mouse_sensitivity;
+
+    transform.rotation *= glam::Quat::from_rotation_y(yaw) * glam::Quat::from_rotation_x(pitch);
+
+    let local_direction = glam::Vec3::new(
+        right as i32 as f32 - left as i32 as f32,
+        up as i32 as f32 - down as i32 as f32,
+        backward as i32 as f32 - forward as i32 as f32,
+    );
+
+    if local_direction != glam::Vec3::ZERO {
+        let direction = (transform.rotation * local_direction).normalize();
+        transform.translation += direction * speed * dt;
     }
 }

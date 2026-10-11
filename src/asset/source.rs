@@ -1,14 +1,16 @@
 use crate::{
     asset::{MeshAsset, TextureAsset},
-    component::Transform,
+    component::{camera::CameraProjection, Transform},
 };
 
 #[derive(Debug, Clone, Default)]
 pub struct SceneSource {
+    pub lights: Vec<LightSource>,
     pub meshes: Vec<MeshSource>,
     pub textures: Vec<TextureSource>,
     pub materials: Vec<MaterialSource>,
     pub objects: Vec<ObjectSource>,
+    pub camera: Option<CameraSource>,
 }
 
 #[derive(Debug, Clone)]
@@ -35,4 +37,18 @@ pub struct ObjectSource {
     pub transform: Transform,
     pub mesh: usize,
     pub material: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct LightSource {
+    pub transform: Transform,
+    pub color: [f32; 3],
+    pub intensity: f32,
+    pub range: f32,
+}
+
+#[derive(Debug, Clone)]
+pub struct CameraSource {
+    pub transform: Transform,
+    pub projection: CameraProjection,
 }

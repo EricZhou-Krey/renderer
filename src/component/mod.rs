@@ -1,9 +1,6 @@
 use crate::asset::id::{MaterialId, MeshId, TextureId};
 
-pub mod acoustic_geometry;
-pub mod acoustic_material;
-pub mod acoustic_receiver;
-pub mod acoustic_source;
+pub mod acoustics;
 pub mod camera;
 pub mod debug;
 

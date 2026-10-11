@@ -80,7 +80,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let albedo = sampled_color * material.base_color;
     let normal = normalize(input.normal);
 
-    var lighting = vec3<f32>(0.05);
+    var lighting = vec3<f32>(0.2);
 
     let light_count = min(light_uniform.count, 256u);
 
