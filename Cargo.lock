@@ -3923,6 +3923,9 @@ dependencies = [
  "kira",
  "rook_terminal",
  "slotmap",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
  "wgpu",
 ]
 
