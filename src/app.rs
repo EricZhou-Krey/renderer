@@ -1,9 +1,11 @@
 use crate::{
     asset::AssetWorldExtension,
+    commands::advance_animations,
     component::{
         camera::{ActiveCamera, Camera, CameraProjection},
         Transform,
     },
+    demo::setup_demo_scene,
     renderer::{resource::init_callback_resources, Renderer},
     resource::{FrameDelta, ResoureWorldExtension},
     terminal::RendererTerminalWorldExtension,
@@ -25,9 +27,10 @@ impl RaytraceApp {
     pub fn new(cc: &CreationContext) -> Self {
         let mut world: World = World::new();
         world.setup_terminal();
-        world.setup_render_commands();
+        world.setup_render_terminal();
         world.setup_assets();
         world.setup_resource();
+        setup_demo_scene(&mut world);
 
         let camera: Entity = world
             .spawn((
@@ -55,7 +58,8 @@ impl RaytraceApp {
 
         init_callback_resources(cc, &mut world);
 
-        let schedule: Schedule = Schedule::default();
+        let mut schedule: Schedule = Schedule::default();
+        schedule.add_systems(advance_animations);
 
         Self { world, schedule }
     }
@@ -99,7 +103,7 @@ impl eframe::App for RaytraceApp {
 pub fn move_camera_from_keyboard(world: &mut World, ctx: &egui::Context, dt: f32) {
     let wants_keyboard = ctx.egui_wants_keyboard_input();
 
-    let (forward, backward, left, right, up, down, look_inactive, mouse_delta, fast) =
+    let (forward, backward, left, right, up, down, look_active, mouse_delta, fast) =
         ctx.input(|input| {
             let look_active =
                 input.pointer.button_down(egui::PointerButton::Secondary) && !wants_keyboard;
@@ -120,14 +124,14 @@ pub fn move_camera_from_keyboard(world: &mut World, ctx: &egui::Context, dt: f32
             )
         });
 
-    ctx.send_viewport_cmd(egui::ViewportCommand::CursorGrab(if !look_inactive {
+    ctx.send_viewport_cmd(egui::ViewportCommand::CursorGrab(if look_active {
         egui::viewport::CursorGrab::Locked
     } else {
         egui::viewport::CursorGrab::None
     }));
-    ctx.send_viewport_cmd(egui::ViewportCommand::CursorVisible(look_inactive));
+    ctx.send_viewport_cmd(egui::ViewportCommand::CursorVisible(!look_active));
 
-    if wants_keyboard || look_inactive {
+    if wants_keyboard || !look_active {
         return;
     }
 
